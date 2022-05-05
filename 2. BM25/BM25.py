@@ -39,15 +39,18 @@ class BM25:
         self.avdl = sum([len(d) for d in docs.values()]) / self.N
 
     def doc_part(self, doc, word, k1, b):
+        """BM25 Part 1: This is the part of the BM25 formula that is dependent on the document."""
         fi = doc.count(word)
         dl = len(doc)
         return ((k1+1)*fi)/(fi+k1*(1-b+b*dl/self.avdl))
 
     def query_part(self, query, word, k2):
+        """BM25 Part2: This is the part of the BM25 formula that is dependent on the query."""
         qfi = query.count(word)
         return ((k2+1)*qfi)/(qfi+k2)
     
     def ni(self, word):
+        """Returns the number of documents that contain the word."""
         r = 0
         for doc in self.D.values():
             if word in doc:
@@ -55,18 +58,20 @@ class BM25:
         return r
     
     def df(self, word):
+        """BM25 Part 3: This is the last part of the BM25 formula that is independent of the document or the query."""
         n = self.ni(word)
         val = (self.N - n + 0.5) / (n + 0.5)
         return np.log(val)
 
     def get_scores(self, k1=0.25, k2=1.2, b=0.75):
+        """Returns a 2D list of scores for each query."""
         scores = []
         for query in self.Q.values():
             doc_score = []
             for doc in self.D.values():
                 d = 0
                 for word in query:
-                    d += self.doc_part(doc, word, k1, b)*self.query_part(query, word, k2)*self.df(word)
+                    d += self.doc_part(doc, word, k1, b) * self.query_part(query, word, k2) * self.df(word)
                     print(1, end="", flush = True)
                 doc_score.append(d)
                 print("\ndoc_score: ", d)
@@ -75,7 +80,9 @@ class BM25:
 
 
 def namestr(obj, namespace = globals()):
+    """Return the name of the variable, obj is stored in."""
     return [name for name in namespace if namespace[name] is obj][0]
+
 def print_json(query, n = 3, m = 5, k=6):
     n = 3
     print(f"{namestr(query)} = "+"{\n", end="")  # start of the json
