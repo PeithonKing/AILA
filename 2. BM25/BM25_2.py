@@ -1,10 +1,7 @@
-from rank_bm25 import BM25Okapi, BM25Plus, BM25L
-from newap import average_precision
-import json, os
+import json, os, time
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import time
+# import matplotlib.pyplot as plt
 
 class BM25:
     def __init__(self, docs, queries, cache = "cache/", load = True):
@@ -53,7 +50,6 @@ class BM25:
         self.queries = queries
         self.N = len(docs)
         self.avdl = sum([len(d) for d in docs.values()]) / self.N
-        print("avdl: ", self.avdl)
         self.cache = cache
         self.nameEnd = f"{len(docs)}_{len(queries)}.csv"  # start will be with either "d_" or "q_"
         
@@ -112,10 +108,9 @@ class BM25:
         """BM25 Part 1: This is the part of the BM25 formula that is dependent on the document."""
         fi = self.D.loc[:, self.Is[0]:].to_numpy(dtype=np.int32)
         k = np.array(self.D.loc[:, "dl"]).reshape((len(self.D), 1))
-        o = np.ones((1, len(self.Is)))
         # print("k:", k.shape)
         # print("o:", o.shape)
-        dl = np.dot(k, o)
+        dl = k @ np.ones((1, len(self.Is)))
         # print("OK")
         return ((k1+1)*fi)/(fi+k1*(1-b+b*dl/self.avdl))
 
@@ -126,11 +121,9 @@ class BM25:
     
     def idf(self):
         """BM25 Part 3: This is the last part of the BM25 formula that is independent of the document or the query."""
-        
         fi = self.D.loc[:, self.Is[0]:].to_numpy(dtype=np.int32)
         k = np.count_nonzero(fi, axis = 0).reshape((1, len(self.Is)))
-        o = np.ones((len(self.D), 1))
-        ni = np.dot(o, k)
+        ni = np.ones((len(self.D), 1)) @ k
         val = (self.N-ni+0.5)/(ni+0.5)
         return np.log(val)
 
@@ -138,9 +131,10 @@ class BM25:
         """Returns a 2D list of scores for each query."""
         p1 = self.doc_part(k1, b)*self.idf()
         p2 = self.query_part(k2).T
-        return np.dot(p1, p2)
+        return (p1 @ p2).T
 
 
+# Some faltu functions
 def namestr(obj, namespace = globals()):
     """Return the name of the variable, obj is stored in."""
     return [name for name in namespace if namespace[name] is obj][0]
@@ -157,29 +151,31 @@ def print_json(query, n = 3, m = 5, k=6):
         print('\t"'+QID+'":', query[QID][:m], "\b\b, ......],")
     print("}")  # end of the json
 
+
 if __name__ == "__main__":
     loc = "../refining_seriously/"
     
-    # "cases.json" has the query and the doc_id of the relevant documents
+    # IMPORTING THE DATA:
+    #   "cases.json" has the query and the doc_id of the relevant documents
     with open(loc+"cases.json") as f:
         prior_cases = json.load(f)
     # print_json(prior_cases, k=1)
 
-    # "Query_doc.json" has all the queries (X)
+    #   "Query_doc.json" has all the queries (X)
     with open(loc+"Query_doc.json") as f:
         query = json.load(f)
     # print_json(query)
 
-    # "answers.json" has the relevant documents (Y)
+    #   "answers.json" has the relevant documents (Y)
     with open(loc+"answers.json") as f:
         answers = json.load(f)
     # print_json(answers, 3, 1)
 
-
     model = BM25(prior_cases, query)
-    print("started")
+    
     t0 = time.time()
     scores = model.get_scores()
     print(f"took {time.time()-t0} seconds")
+    
     print(scores.shape)
     print(scores)
