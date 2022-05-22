@@ -13,10 +13,10 @@ def average_precision(result, relevant):
     for i, s in enumerate(d):
         R[f"C{result.index(s)+1}"] = i+1
     ans = 0
-    
     for i, r in enumerate(relevant):
-        # print("\n", i, "\t", R[r])
+        print(f"{i+1}/{R[r]} = {(i+1)/R[r]}")
         ans += (i+1)/R[r]
+    print(f"getting AP: {ans} / {len(relevant)} = {ans / len(relevant)}\n")
     return ans / len(relevant)
 
 def MAP(scores, answers):
