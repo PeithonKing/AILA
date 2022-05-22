@@ -4,7 +4,7 @@ import pandas as pd
 # import matplotlib.pyplot as plt
 
 class BM25:
-    def __init__(self, docs, queries, cache = "cache/", load = True):
+    def __init__(self, docs, queries, cache = "cache/", load = True, save = True):
         """
         D: dictionary of documents
         Q: dictionary of query terms
@@ -18,7 +18,7 @@ class BM25:
              ...
              "C2912": ['dharangadhara', 'chemic', 'work', 'limit', 'v', ......],
              "C2913": ['central', 'bank', 'india', 'v', 'sethumadhavan', ......],
-             "C2914": ['som', 'raj', 'soma', 'v', 'state', ......],
+             "C2914": ['som', 'raj', 'soma', 'v', 'state', ......]
             }
         
         queries = {"AILA_Q1": ['appel', 'februari', 'appoint', 'offic', 'grade', ......],
@@ -28,7 +28,7 @@ class BM25:
              ...
              "AILA_Q48": ['whether', 'sanction', 'requir', 'initi', 'crimin', ......],
              "AILA_Q49": ['appel', 'patwari', 'work', 'villag', 'v1', ......],
-             "AILA_Q50": ['peculiar', 'featur', 'appeal', 'special', 'leav', ......],
+             "AILA_Q50": ['peculiar', 'featur', 'appeal', 'special', 'leav', ......]
             }
         
         If load is True, first it will look for a file in the directory <cache> which has the
@@ -64,19 +64,24 @@ class BM25:
 
         if has:
             print("Loading from cache...")
-            self.D = pd.read_csv(cache + "d_" + self.nameEnd)
-            self.Q = pd.read_csv(cache + "q_" + self.nameEnd)
-            self.Is = self.Q.columns.tolist()[1:]
+            D = pd.read_csv(cache + "d_" + self.nameEnd)
+            Q = pd.read_csv(cache + "q_" + self.nameEnd)
+            self.Is = Q.columns.tolist()[1:]
+            # print("self.Is =\n", self.Is)
+            self.D = D[["dl"]+self.Is]
+            # print("self.D =\n", self.D)
+            self.Q = Q[self.Is]
+            # print("self.Q =\n", self.Q)
             
         else:
             print("Previous file not found...")
-            self.vect(docs, queries)
+            self.vect(docs, queries, save)
         
-    def vect(self, docs, queries):
+    def vect(self, docs, queries, save):
         print("Catching vectorised fis and qfis for faster calculations (takes ~2 mins)")
         a = []
         for i in queries.values(): a += i
-        Is = list(set(a))
+        Is = sorted(list(set(a)))
         self.Is = Is
         
         print("Starting docs... ", end = "")
@@ -86,10 +91,12 @@ class BM25:
             for i in Is:
                 doc[name][i] = cont.count(i)
         doc = pd.DataFrame(doc).T
-        print(doc)
-        doc.to_csv(self.cache + "d_" + self.nameEnd)
+        self.D = doc[["dl"]+Is]
+        doc = doc.reindex([f"C{i+1}" for i in range(2914)])
         print("done")
-        
+        print(doc)
+        if save: doc.to_csv(self.cache + "d_" + self.nameEnd)
+
         print("Starting queries... ", end = "")
         query = {}
         for name, cont in queries.items():
@@ -97,41 +104,57 @@ class BM25:
             for i in Is:
                 query[name][i] = cont.count(i)
         query = pd.DataFrame(query).T
-        print(query)
-        query.to_csv(self.cache + "q_" + self.nameEnd)
+        self.Q = query[Is]
+        query = query.reindex([f"AILA_Q{i+1}" for i in range(50)])
         print("done")
-        
-        self.D = doc
-        self.Q = query
+        print(query)
+        if save: query.to_csv(self.cache + "q_" + self.nameEnd)
+
+        self.D = doc[["dl"]+Is]
+        self.Q = query[Is]
+        # print("self.Is =\n", self.Is)
+        print("self.D =\n", self.D)
+        print("self.Q =\n", self.Q)
 
     def doc_part(self, k1, b):
         """BM25 Part 1: This is the part of the BM25 formula that is dependent on the document."""
-        fi = self.D.loc[:, self.Is[0]:].to_numpy(dtype=np.int32)
         k = np.array(self.D.loc[:, "dl"]).reshape((len(self.D), 1))
+        fi = self.D.loc[:, self.Is[0]:].to_numpy(dtype=np.int32)
         # print("k:", k.shape)
         # print("o:", o.shape)
         dl = k @ np.ones((1, len(self.Is)))
         # print("OK")
-        return ((k1+1)*fi)/(fi+k1*(1-b+b*dl/self.avdl))
+        ret = ((k1+1)*fi)/(fi+k1*(1-b+b*dl/self.avdl))
+        # print(f"doc_part:\n{ret}\n")
+        return ret
 
     def query_part(self, k2):
         """BM25 Part2: This is the part of the BM25 formula that is dependent on the query."""
         qfi = self.Q.loc[:, self.Is[0]:].to_numpy(dtype=np.int32)
-        return ((k2+1)*qfi)/(qfi+k2)
+        ret = ((k2+1)*qfi)/(qfi+k2)
+        # print(f"query_part:\n{ret}\n")
+        return ret
     
     def idf(self):
-        """BM25 Part 3: This is the last part of the BM25 formula that is independent of the document or the query."""
-        fi = self.D.loc[:, self.Is[0]:].to_numpy(dtype=np.int32)
+        """BM25 Part 3: This is the last part of the BM25 formula that is almost independent of the document or the query."""
+        fi = self.D.loc[:, list(self.D.keys())[1]:].to_numpy(dtype=np.int32)
+        # print("fi = ", fi)
         k = np.count_nonzero(fi, axis = 0).reshape((1, len(self.Is)))
+        # print("k = ", k)
         ni = np.ones((len(self.D), 1)) @ k
+        # raise ValueError("Stop")
         val = (self.N-ni+0.5)/(ni+0.5)
-        return np.log(val)
+        ret = np.log(val)
+        # print(f"idf =\n{ret}\n")
+        return ret
 
     def get_scores(self, k1=0.25, k2=1.2, b=0.75):
         """Returns a 2D list of scores for each query."""
         p1 = self.doc_part(k1, b)*self.idf()
+        # print("p1 = ", p1)
         p2 = self.query_part(k2).T
-        return (p1 @ p2).T
+        # print("p2 =", p2)
+        return ((p1 @ p2).T)
 
 
 # Some faltu functions
@@ -153,28 +176,38 @@ def print_json(query, n = 3, m = 5, k=6):
 
 
 if __name__ == "__main__":
-    loc = "../refining_seriously/"
+    # loc = "../refining_seriously/"
+    # # IMPORTING THE DATA:
+    # #   "cases.json" has the query and the doc_id of the relevant documents
+    # with open(loc+"cases.json") as f:
+    #     prior_cases = json.load(f)
+    # # print_json(prior_cases, k=1)
+
+    # #   "Query_doc.json" has all the queries (X)
+    # with open(loc+"Query_doc.json") as f:
+    #     query = json.load(f)
+    # # print_json(query)
+
+    # #   "answers.json" has the relevant documents (Y)
+    # with open(loc+"answers.json") as f:
+    #     answers = json.load(f)
+    # # print_json(answers, 3, 1)
     
-    # IMPORTING THE DATA:
-    #   "cases.json" has the query and the doc_id of the relevant documents
-    with open(loc+"cases.json") as f:
-        prior_cases = json.load(f)
-    # print_json(prior_cases, k=1)
-
-    #   "Query_doc.json" has all the queries (X)
-    with open(loc+"Query_doc.json") as f:
-        query = json.load(f)
-    # print_json(query)
-
-    #   "answers.json" has the relevant documents (Y)
-    with open(loc+"answers.json") as f:
-        answers = json.load(f)
-    # print_json(answers, 3, 1)
-
-    model = BM25(prior_cases, query)
+    docs = {
+	    "D1": list("abcbd"),
+	    "D2": list("befb"),
+	    "D3": list("bgcd"),
+	    "D4": list("bde"),
+	    "D5": list("abeg"),
+	    "D6": list("bghh")
+    }
+    
+    query = {"Q1": list("ach")}
+    
+    model = BM25(docs, query, load=True)
     
     t0 = time.time()
-    scores = model.get_scores()
+    scores = model.get_scores(k1 = 1, b = 0.5)
     print(f"took {time.time()-t0} seconds")
     
     print(scores.shape)

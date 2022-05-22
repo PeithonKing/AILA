@@ -1,0 +1,1 @@
+    return AP/len(result)

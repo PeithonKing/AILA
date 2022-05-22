@@ -61,7 +61,7 @@ class BM25:
         """BM25 Part 3: This is the last part of the BM25 formula that is independent of the document or the query."""
         n = self.ni(word)
         val = (self.N - n + 0.5) / (n + 0.5)
-        return np.log(val)
+        return np.log10(val)
 
     def get_scores(self, k1=0.25, k2=1.2, b=0.75):
         """Returns a 2D list of scores for each query."""
@@ -69,12 +69,22 @@ class BM25:
         for query in self.Q.values():
             doc_score = []
             for doc in self.D.values():
+                # print("\n\n", doc)
                 d = 0
-                for word in query:
-                    d += self.doc_part(doc, word, k1, b) * self.query_part(query, word, k2) * self.df(word)
-                    print(1, end="", flush = True)
+                for word in sorted(list(set(query))):
+                    # print(f"word: {word}")
+                    p1 = self.doc_part(doc, word, k1, b)
+                    # print(f"    p1 = {p1}")
+                    p2 = self.query_part(query, word, k2)
+                    # print(f"    p2 = {p2}")
+                    p3 = self.df(word)
+                    # print(f"    p3 = {p3}")
+                    
+                    fuck = p1 * p2 * p3
+                    # print(f"  product: {fuck}")
+                    d += fuck
                 doc_score.append(d)
-                print("\ndoc_score: ", d)
+                # print("doc_score: ", d)
             scores.append(doc_score)
         return scores
 
@@ -96,24 +106,40 @@ def print_json(query, n = 3, m = 5, k=6):
     print("}")  # end of the json
 
 if __name__ == "__main__":
-    loc = "../refining_seriously/"
+    # loc = "../refining_seriously/"
     
-    # "cases.json" has the query and the doc_id of the relevant documents
-    with open(loc+"cases.json") as f:
-        prior_cases = json.load(f)
-    # print_json(prior_cases, k=1)
+    # # "cases.json" has the query and the doc_id of the relevant documents
+    # with open(loc+"cases.json") as f:
+    #     prior_cases = json.load(f)
+    # # print_json(prior_cases, k=1)
 
-    # "Query_doc.json" has all the queries (X)
-    with open(loc+"Query_doc.json") as f:
-        query = json.load(f)
-    # print_json(query)
+    # # "Query_doc.json" has all the queries (X)
+    # with open(loc+"Query_doc.json") as f:
+    #     query = json.load(f)
+    # # print_json(query)
 
-    # "answers.json" has the relevant documents (Y)
-    with open(loc+"answers.json") as f:
-        answers = json.load(f)
-    # print_json(answers, 3, 1)
+    # # "answers.json" has the relevant documents (Y)
+    # with open(loc+"answers.json") as f:
+    #     answers = json.load(f)
+    # # print_json(answers, 3, 1)
 
 
-    model = BM25(prior_cases, query)
-    print("started")
-    scores = model.get_scores()
+    # model = BM25(prior_cases, query)
+    # print("started")
+    # scores = model.get_scores()# 
+    
+    
+    docs = {
+	"D1": list("acdd"),
+	"D2": list("abcd"),
+	"D3": list("abbc"),
+	# "D4": list(""),
+	# "D5": list(""),
+	# "D6": list("")
+         }
+    
+    query = {"Q1": list("abc")}
+    
+    model = BM25(docs, query)
+    
+    print(model.get_scores(k1 = 0.5))

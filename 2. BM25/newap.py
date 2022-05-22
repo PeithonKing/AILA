@@ -3,16 +3,19 @@ def average_precision(result, relevant):
     Example:
     result = [0.7, 0.9, 0.8, 1.0, 0.2, 0.81]
               C1  [C2]  [C3]  C4  [C5]  C6       # [x] just means x is relevant doc
-                    3     1         2       
+                    3     1         2
                
     relevant = ["C3", "C5", "C2"]
     """
     R = {}
     result = list(result)
-    for i, s in enumerate(sorted(result, reverse=True)):
+    d = sorted(result, reverse=True)
+    for i, s in enumerate(d):
         R[f"C{result.index(s)+1}"] = i+1
     ans = 0
+    
     for i, r in enumerate(relevant):
+        # print("\n", i, "\t", R[r])
         ans += (i+1)/R[r]
     return ans / len(relevant)
 
