@@ -9,3 +9,4 @@ Query_doc.txt
 README.txt
 relevance_judgments_priorcases.txt
 relevance_judgments_statutes.txt
+*.pyc

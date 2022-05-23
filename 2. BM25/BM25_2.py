@@ -52,6 +52,8 @@ class BM25:
         self.avdl = sum([len(d) for d in docs.values()]) / self.N
         self.cache = cache
         self.nameEnd = f"{len(docs)}_{len(queries)}.csv"  # start will be with either "d_" or "q_"
+        cX = sorted(docs, key = lambda x: float(x[1:]))
+        qX = sorted(queries, key = lambda x: float(x[6:]))
         
         # Checking if we have that file:
         has = False
@@ -75,9 +77,9 @@ class BM25:
             
         else:
             print("Previous file not found...")
-            self.vect(docs, queries, save)
+            self.vect(docs, queries, save, cX, qX)
         
-    def vect(self, docs, queries, save):
+    def vect(self, docs, queries, save, cX, qX):
         print("Catching vectorised fis and qfis for faster calculations (takes ~2 mins)")
         a = []
         for i in queries.values(): a += i
@@ -92,7 +94,7 @@ class BM25:
                 doc[name][i] = cont.count(i)
         doc = pd.DataFrame(doc).T
         self.D = doc[["dl"]+Is]
-        doc = doc.reindex([f"C{i+1}" for i in range(2914)])
+        doc = doc.reindex(cX)
         print("done")
         print(doc)
         if save: doc.to_csv(self.cache + "d_" + self.nameEnd)
@@ -105,7 +107,7 @@ class BM25:
                 query[name][i] = cont.count(i)
         query = pd.DataFrame(query).T
         self.Q = query[Is]
-        query = query.reindex([f"AILA_Q{i+1}" for i in range(50)])
+        query = query.reindex(qX)
         print("done")
         print(query)
         if save: query.to_csv(self.cache + "q_" + self.nameEnd)
